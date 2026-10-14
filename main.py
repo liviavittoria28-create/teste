@@ -1,6 +1,6 @@
 """LumiNova API starter. SQLite for local testing; use PostgreSQL in deployment."""
 from __future__ import annotations
-import os, re, time, secrets
+import os, re, time, secrets, logging
 from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -16,7 +16,11 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from sqlalchemy import create_engine, String, DateTime, ForeignKey, Text, select, or_
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker, Session
+
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+logger = logging.getLogger("luminova")
 
 BASE_DIR = Path(__file__).resolve().parent
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'luminova.db'}")
@@ -120,9 +124,19 @@ def signup(data: Signup, request: Request, response: Response, db: Session = Dep
     if len(data.password) < 10 or not re.search(r"[A-Za-z]", data.password) or not re.search(r"\d", data.password): raise HTTPException(422, "Use uma senha com pelo menos 10 caracteres, incluindo letras e números.")
     user = User(name=data.name.strip(), nickname=nick, email=email, password_hash=ph.hash(data.password))
     db.add(user)
-    try: db.commit(); db.refresh(user)
-    except Exception: db.rollback(); raise HTTPException(409, "Não foi possível criar a conta. Verifique os dados e tente novamente.")
-    set_session(response, issue_token(user)); return {"user":user_out(user)}
+    try:
+        db.commit()
+        db.refresh(user)
+    except IntegrityError:
+        db.rollback()
+        # Unique constraints can still be hit if two signups happen at the same time.
+        raise HTTPException(status_code=409, detail="Este e-mail ou apelido já está cadastrado. Tente entrar ou use outros dados.")
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("Falha de banco de dados ao criar conta")
+        raise HTTPException(status_code=500, detail="Erro interno ao salvar a conta. Confira o terminal do backend para ver o motivo.")
+    set_session(response, issue_token(user))
+    return {"user": user_out(user)}
 @app.post("/api/auth/login")
 def login(data: Login, request: Request, response: Response, db: Session = Depends(db_session)):
     rate_limit(request, "login", 8)
