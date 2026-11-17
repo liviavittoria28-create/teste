@@ -1,4 +1,6 @@
-# LumiNova — protótipo inicial (FastAPI)
+# LumiNova: protótipo inicial (FastAPI)
+
+> **Repositório arquivado, mantido só para consulta.** A versão atual do projeto está em [Luminova](https://github.com/liviavittoria28-create/Luminova).
 
 Primeira versão da [LumiNova](https://github.com/liviavittoria28-create/Luminova), feita para validar a ideia antes da migração para o Supabase. Este repositório fica como registro da evolução do projeto. A versão atual e mantida está no repositório **Luminova**.
 
@@ -31,3 +33,11 @@ uvicorn main:app --reload
 ## Evolução
 
 Na versão atual, autenticação, banco e armazenamento passaram para o Supabase, e as regras de acesso viraram políticas RLS no próprio Postgres.
+
+## Limitações
+
+É um protótipo de validação: não tem testes automatizados, deploy nem atualizações. O banco SQLite é criado localmente na primeira execução.
+
+---
+
+Desenvolvido por **Lívia Vittoria** · [Portfólio](https://liviavittoria28-create.github.io) · [LinkedIn](https://www.linkedin.com/in/livia-vittoria-732b8a430/)
